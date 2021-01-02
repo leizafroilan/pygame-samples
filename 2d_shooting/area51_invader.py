@@ -46,6 +46,8 @@ class enemy(object):
         self.rx_chg = 0
         self.statusr = True
         self.respawnr = 300
+        self.firer = True
+        self.firel = True
 
         # Enemy random respawn  -- Moving to left
         self.lx = random.randint(0, 768)
@@ -74,31 +76,39 @@ class enemybullet(object):
             enemybulletImg = pygame.image.load("enemybullet.png")
             screen.blit(enemybulletImg, (self.x, self.y))
 
-def isCollision(x, y, bulletx, bullety):
+def isHit(x, y, bulletx, bullety):
     distance = math.sqrt(math.pow(x - bulletx, 2) + (math.pow(y - bullety, 2)))
 
     if distance < 27:
-        print(distance)
         return True
 
-def isEnemyCollision(x, y, bulletx, bullety):
+def isEnemyHit(x, y, bulletx, bullety):
     distance = math.sqrt(math.pow(x - bulletx, 2) + (math.pow(y - bullety, 2)))
 
     if distance < 40:
-        print(distance)
+        return True
+
+def isCollision(x, y, enemyx, enemyy):
+    distance = math.sqrt(math.pow(x - enemyx, 2) + (math.pow(y - enemyy, 2)))
+
+    if distance < 20:
         return True
 
 def score(label, x, y, points):
-    font = pygame.font.Font('freesansbold.ttf', 16)
-    scoreImg = font.render(f"{label} : {points}", True, (0, 255, 0))
+    font = pygame.font.SysFont('freemono', 16)
+    scoreImg = font.render(f"{label} : {points}", True, (0, 0, 255))
     screen.blit(scoreImg, (x, y))
 
 def gameover():
-    font = pygame.font.Font('freesansbold.ttf', 64)
+    font = pygame.font.SysFont('freemono', 64)
     gameoverImg = font.render("Game Over", True, (255, 0 ,0))
     screen.fill((0, 0, 0))
-    screen.blit(gameoverImg,(204.5, 300))
+    screen.blit(gameoverImg,(204.5, 260))
 
+def startgame(countdown):
+    font = pygame.font.SysFont('Constantia', 128)
+    startgameImg = font.render(str(countdown), True, (255, 0, 0))
+    screen.blit(startgameImg,(350,220))
 
 if __name__ == "__main__":
 
@@ -106,15 +116,21 @@ if __name__ == "__main__":
 
     screen = pygame.display.set_mode((800, 600))
 
+    running = True
+    points = 0
+    enemypoints = 0
+    last_count = pygame.time.get_ticks()
+    counter = 5
+
     # Icon and game title
     pygame.display.set_caption("Area 51 Invader")
     icon = pygame.image.load("alien.png")
     pygame.display.set_icon(icon)
 
-    # Music
-    # pygame.mixer.music.load("background.wav")
-    # pygame.mixer.music.play(-1)
 
+     # Music
+     pygame.mixer.music.load("background.wav")
+     pygame.mixer.music.play(-1)
 
 
     player = player()
@@ -123,28 +139,14 @@ if __name__ == "__main__":
     enemybulletr = enemybullet(enemy.rx, enemy.ry)
     enemybulletl = enemybullet(enemy.lx, enemy.ly)
 
-    running = True
-    points = 0
-    enemypoints = 0
-
     while running:
 
         # Background
         background = pygame.image.load("51.png")
         screen.blit(background, (0, 0))
 
-        # Check player if dead and set x = 370, y = 480
-        if player.respawn < 300:
-            player.respawn += 1
-            player.status = False
-            if player.respawn == 299:
-                player.x = 370
-                player.y = 480
-
-        # Player is alive. Draws initial player position
-        elif player.respawn == 300:
-            drawplayer = player.draw()
-            player.status = True
+        # Draws player
+        drawplayer = player.draw()
 
         # Draws enemy moving right
         if enemy.statusr == False and enemy.respawnr < 300:
@@ -169,6 +171,27 @@ if __name__ == "__main__":
         # Score
         score("Player Score", 10, 10, points)
         score("Enemy Score", 10, 30, enemypoints)
+
+        # Start game counter
+        if counter > 0:
+            startgame(counter)
+            time_now = pygame.time.get_ticks()
+            player.x = 370
+            player.y = 480
+            player.status = False
+            enemy.statusr = False
+            enemy.statusl = False
+            enemy.firer = False
+            enemy.firel = False
+            if time_now - last_count > 1000:
+                counter -=1
+                last_count = time_now
+        elif counter == 0:
+            enemy.firer = True
+            enemy.firel = True
+            player.status = True
+            #enemy.statusr = True
+            #enemy.statusl = True
 
         # Keyboard input
         for event in pygame.event.get():
@@ -198,6 +221,41 @@ if __name__ == "__main__":
                 if event.key == pygame.K_UP or event.key == pygame.K_DOWN:
                     player.y_chg = 0
 
+        # EnemyR Movement
+        if enemy.statusr == True:
+
+            if enemy.rx >=0 and enemy.rx <=768:
+                enemy.rx_chg = 0.5
+            else:
+                enemy.rx = random.randint(0, 768)
+                enemy.ry = random.randint(60, 150)
+            enemy.rx += enemy.rx_chg
+
+        # Fires EnemyR Bullet
+        if enemybulletr.y < 600 and enemy.firer == True:
+            enemybulletr.y -= enemybulletr.y_chg
+            enemybulletr.draw()
+        if enemybulletr.y > 595 and enemy.firer == True:
+            enemybulletr.x = enemy.rx
+            enemybulletr.y = enemy.ry
+
+        # EnemyL Movement
+        if enemy.statusl == True:
+            if enemy.lx <=736 and enemy.lx >=0:
+                enemy.lx_chg = -0.5
+            else:
+                enemy.lx = random.randint(0, 768)
+                enemy.ly = random.randint(60, 150)
+            enemy.lx += enemy.lx_chg
+
+        # Fires EnemyL Bullet
+        if enemybulletl.y < 600 and enemy.firel == True:
+            enemybulletl.y -= enemybulletl.y_chg
+            enemybulletl.draw()
+        if enemybulletl.y > 595:
+            enemybulletl.x = enemy.lx
+            enemybulletl.y = enemy.ly
+
         # Player Movement
         player.x += player.x_chg
         player.y += player.y_chg
@@ -215,7 +273,6 @@ if __name__ == "__main__":
 
         # Bullet Movement
         if bullet.fire == True and player.status == True:
-            print("fire")
             bullet.draw()
             bullet.y -= bullet.y_chg
         if bullet.y <=0:
@@ -223,50 +280,16 @@ if __name__ == "__main__":
             bullet.y = player.y
             bullet.fire = False
 
-
-        # EnemyR Movement
-        if enemy.statusr == True:
-            if enemy.rx >=0 and enemy.rx <=768:
-                enemy.rx_chg = 0.5
-            else:
-                enemy.rx = random.randint(0, 768)
-                enemy.ry = random.randint(60, 150)
-            enemy.rx += enemy.rx_chg
-
-        # Fires EnemyR Bullet
-        if enemybulletr.y < 600:
-            enemybulletr.y -= enemybulletr.y_chg
-            enemybulletr.draw()
-        if enemybulletr.y > 595:
-            enemybulletr.x = enemy.rx
-            enemybulletr.y = enemy.ry
-
-        # EnemyL Movement
-        if enemy.statusl == True:
-            if enemy.lx <=736 and enemy.lx >=0:
-                enemy.lx_chg = -0.5
-            else:
-                enemy.lx = random.randint(0, 768)
-                enemy.ly = random.randint(60, 150)
-
-            enemy.lx += enemy.lx_chg
-
-        # Fires EnemyL Bullet
-        if enemybulletl.y < 600:
-            enemybulletl.y -= enemybulletl.y_chg
-            enemybulletl.draw()
-        if enemybulletl.y > 595:
-            enemybulletl.x = enemy.lx
-            enemybulletl.y = enemy.ly
-
         # Collision
-        collisionr = isCollision(enemy.rx, enemy.ry, bullet.x, bullet.y)
-        collisionl = isCollision(enemy.lx, enemy.ly, bullet.x, bullet.y)
-        enemycollisionr = isEnemyCollision(player.x, player.y, enemybulletr.x, enemybulletr.y)
-        enemycollisionl = isEnemyCollision(player.x, player.y, enemybulletl.x, enemybulletl.y)
+        hitr = isHit(enemy.rx, enemy.ry, bullet.x, bullet.y)
+        hitl = isHit(enemy.lx, enemy.ly, bullet.x, bullet.y)
+        enemyhitr = isEnemyHit(player.x, player.y, enemybulletr.x, enemybulletr.y)
+        enemyhitl = isEnemyHit(player.x, player.y, enemybulletl.x, enemybulletl.y)
+        collisionr = isCollision(player.x, player.y, enemy.rx, enemy.ry)
+        collisionl = isCollision(player.x, player.y, enemy.lx, enemy.ly)
 
         # Player hits the enemy moving right
-        if collisionr and player.status == True:
+        if hitr and player.status == True:
 
             bullet.y = 480
             bullet.fire = False
@@ -277,7 +300,7 @@ if __name__ == "__main__":
             enemy.respawnr = 0
 
         # Player hits the enemy moving left
-        if collisionl and player.status == True:
+        if hitl and player.status == True:
 
             bullet.y = 480
             bullet.fire = False
@@ -288,7 +311,7 @@ if __name__ == "__main__":
             enemy.respawnl = 0
 
         # Enemy moving right hits the player
-        if enemycollisionr and player.status == True:
+        if (enemyhitr or collisionr) and player.status == True:
             enemypoints += 1
             enemybulletr.x = enemy.rx
             enemybulletr.y = enemy.ry
@@ -296,9 +319,10 @@ if __name__ == "__main__":
             explosionSound.play()
             player.status = False
             player.respawn = 0
+            counter = 5
 
         # Enemy moving left hits the player
-        if enemycollisionl and player.status == True:
+        if (enemyhitl or collisionl) and player.status == True:
             enemypoints += 1
             enemybulletl.x = enemy.lx
             enemybulletl.y = enemy.ly
@@ -306,9 +330,24 @@ if __name__ == "__main__":
             explosionSound.play()
             player.status = False
             player.respawn = 0
+            counter = 6
 
         # Game over
-        if enemypoints >= 100:
+        if enemypoints >= 3:
             gameover()
+            player.status = False
+            enemy.statusr = False
+            enemy.statusl = False
+            enemy.firer = False
+            enemy.firel = False
+            enemy.rx = 1900
+            enemy.ry = 1900
+            enemy.lx = 1900
+            enemy.ly = 1900
+            enemybulletr.x = enemy.rx
+            enemybulletr.y = enemy.ry
+            enemybulletl.x = enemy.lx
+            enemybulletl.y = enemy.ly
+
 
         pygame.display.update()
